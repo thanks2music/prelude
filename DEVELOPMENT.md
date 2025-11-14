@@ -46,43 +46,97 @@ Run: `pnpm prettier --write .` (or `bun run` equivalent)
 
 #### stripe-bun (apps/foundry/stripe-bun)
 
-A minimal Stripe payment integration using Bun runtime.
+A Stripe payment integration with React 19 frontend and Bun backend, demonstrating separated architecture.
 
 **Tech Stack:**
-- Bun runtime with TypeScript
-- Stripe SDK v19+
-- No web framework (uses native `Bun.serve`)
+- **Runtime**: Bun v1.3.2
+- **Backend**: Stripe SDK v19+ with Bun.serve
+- **Frontend**: React 19, @stripe/react-stripe-js v3.10.0
+- **Build**: Bun.build() with `define` option for env var injection
+
+**Project Structure:**
+```
+stripe-bun/
+├── backend/           # API Server (port 3000)
+│   ├── src/
+│   │   ├── server.ts
+│   │   └── stripeClient.ts
+│   └── .env          # STRIPE_SECRET_KEY
+└── frontend/         # Dev Server (port 3001)
+    ├── src/
+    │   ├── App.tsx
+    │   ├── CheckoutForm.tsx
+    │   ├── main.tsx
+    │   └── server.ts  # Bun.serve + Bun.build()
+    └── .env          # PUBLIC_STRIPE_PUBLISHABLE_KEY
+```
 
 **Project Commands:**
 ```bash
-cd apps/foundry/stripe-bun
-bun install                    # Install dependencies
-bun run dev                    # Run development server (port 3000)
-bun run start                  # Run production server
-bun run build                  # Build to dist/
+# Backend (Terminal 1)
+cd apps/foundry/stripe-bun/backend
+bun install
+cp .env.example .env  # Add STRIPE_SECRET_KEY
+bun run dev           # Runs on http://localhost:3000
+
+# Frontend (Terminal 2)
+cd apps/foundry/stripe-bun/frontend
+bun install
+cp .env.example .env  # Add PUBLIC_STRIPE_PUBLISHABLE_KEY
+bun run dev           # Runs on http://localhost:3001
 ```
 
 **Environment Variables:**
-- `STRIPE_SECRET_KEY` - Required for Stripe API (loaded automatically by Bun from .env)
+- **Backend** (`backend/.env`):
+  - `STRIPE_SECRET_KEY` - Server-only, never exposed to client
+  - `STRIPE_WEBHOOK_SECRET` - Server-only, for webhook verification
+- **Frontend** (`frontend/.env`):
+  - `PUBLIC_STRIPE_PUBLISHABLE_KEY` - Client-safe, injected at build time
+  - **IMPORTANT**: `PUBLIC_` prefix is required for client-side injection
 
-**Architecture:**
-- `src/server.ts` - Main HTTP server using Bun.serve
-  - GET /health - Health check endpoint
-  - POST /create-payment-intent - Creates Stripe PaymentIntent
-- `src/stripeClient.ts` - Stripe SDK initialization with environment validation
-
-**API Endpoints:**
+**Backend API Endpoints:**
 - Health: `GET /health` → Returns "ok"
 - Payment: `POST /create-payment-intent`
   - Body: `{ amount: number, currency: string }`
   - Returns: `{ clientSecret: string }`
   - Default: 1000 USD (smallest unit = $10.00)
+  - CORS enabled for http://localhost:3001
+
+**Frontend Architecture:**
+- `src/App.tsx` - Main component with Stripe Elements provider
+- `src/CheckoutForm.tsx` - Payment form with CardElement
+- `src/server.ts` - Development server with `Bun.build()` integration
+  - Builds React app with env var injection using `define` option
+  - Serves built JS with hashed filenames
+  - Generates dynamic HTML
+
+**Environment Variable Injection:**
+
+The frontend uses the `PUBLIC_` prefix pattern with `Bun.build()`:
+
+```typescript
+// frontend/src/server.ts
+const buildResult = await Bun.build({
+  entrypoints: ['./src/main.tsx'],
+  define: {
+    'process.env.PUBLIC_STRIPE_PUBLISHABLE_KEY': JSON.stringify(
+      process.env.PUBLIC_STRIPE_PUBLISHABLE_KEY
+    ),
+  },
+})
+```
+
+This approach:
+- Replaces `process.env.PUBLIC_*` with string literals at build time
+- Prevents secret keys from being exposed to client
+- Makes intent explicit (only `PUBLIC_` prefixed vars are injected)
 
 **Development Notes:**
-- Uses strict TypeScript configuration
-- Error handling includes validation for amount and currency
-- Server runs on port 3000 by default
-- Uses Bun's native HTTP server (no Express/Fastify needed)
+- Uses strict TypeScript configuration for both frontend and backend
+- CORS configured for cross-origin requests between frontend/backend
+- Frontend uses React 19 StrictMode
+- Backend validates amount and currency before creating PaymentIntent
+- CardElement provides PCI-compliant card input (hosted by Stripe)
 
 ### TypeScript Configuration
 
