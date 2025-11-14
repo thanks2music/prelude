@@ -1,9 +1,9 @@
 # Prelude
 
-本リポジトリは、今後のための学習および調査内容を記録する作業場。
+The starting ground for mastering new stacks and shaping the work that comes next.
 
 ```
-/
+REPO_ROOT/
   README.md
 
   apps/
@@ -45,3 +45,4 @@
     pre-commit
     pre-push
 ```
+
