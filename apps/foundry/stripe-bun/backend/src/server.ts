@@ -6,8 +6,26 @@ const server = Bun.serve({
   async fetch(req) {
     const url = new URL(req.url)
 
+    // CORS headers
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': 'http://localhost:3001',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    }
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders,
+      })
+    }
+
     if (req.method === 'GET' && url.pathname === '/health') {
-      return new Response('ok', { status: 200 })
+      return new Response('ok', {
+        status: 200,
+        headers: corsHeaders,
+      })
     }
 
     if (req.method === 'POST' && url.pathname === '/create-payment-intent') {
@@ -19,7 +37,10 @@ const server = Bun.serve({
         if (!Number.isFinite(amount) || amount <= 0) {
           return new Response(JSON.stringify({ error: 'Invalid amount' }), {
             status: 400,
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders,
+            },
           })
         }
 
@@ -33,7 +54,10 @@ const server = Bun.serve({
           JSON.stringify({ clientSecret: paymentIntent.client_secret }),
           {
             status: 200,
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders,
+            },
           }
         )
       } catch (error) {
@@ -42,7 +66,10 @@ const server = Bun.serve({
           JSON.stringify({ error: 'Internal Server Error' }),
           {
             status: 500,
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders,
+            },
           }
         )
       }
