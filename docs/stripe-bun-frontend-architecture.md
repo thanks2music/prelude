@@ -1,14 +1,14 @@
-# Stripe-Bun Frontend Architecture
+# Stripe-Bun フロントエンドアーキテクチャ
 
-## Overview
+## 概要
 
-This document describes the frontend architecture for the stripe-bun project, which implements a React 19 + Stripe Elements payment integration with a separated backend/frontend structure.
+このドキュメントは、React 19 + Stripe Elements を使用した決済統合を実装する stripe-bun プロジェクトのフロントエンドアーキテクチャを説明します。backend/frontend 分離構造を採用しています。
 
-## Architecture Diagram
+## アーキテクチャ図
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Client Browser                          │
+│                  クライアントブラウザ                        │
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │  React 19 App (http://localhost:3001)                 │  │
 │  │  ┌─────────────────────────────────────────────────┐  │  │
@@ -23,18 +23,18 @@ This document describes the frontend architecture for the stripe-bun project, wh
 │  │  └─────────────────────────────────────────────────┘  │  │
 │  └───────────────────────────────────────────────────────┘  │
 └──────────────────────┬──────────────────────────────────────┘
-                       │ HTTP (CORS enabled)
+                       │ HTTP (CORS 有効)
                        │
 ┌──────────────────────▼──────────────────────────────────────┐
 │            Backend API (http://localhost:3000)              │
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │  POST /create-payment-intent                          │  │
-│  │  - Validate amount & currency                         │  │
-│  │  - Create PaymentIntent via Stripe SDK                │  │
-│  │  - Return clientSecret                                │  │
-│  └───────────────────────────────────────────────────────┘  │
+│  │  - 金額と通貨のバリデーション                          │  │
+│  │  - Stripe SDK で PaymentIntent を作成                │  │
+│  │  - clientSecret を返却                                │  │
+│  │  └───────────────────────────────────────────────────┘  │
 │                                                              │
-│  Environment: STRIPE_SECRET_KEY (server-only)                │
+│  環境変数: STRIPE_SECRET_KEY (サーバー専用)                  │
 └──────────────────────┬──────────────────────────────────────┘
                        │ HTTPS
                        │
@@ -43,23 +43,23 @@ This document describes the frontend architecture for the stripe-bun project, wh
 └──────────────────────────────────────────────────────────────┘
 ```
 
-## Project Structure
+## プロジェクト構造
 
 ```
 stripe-bun/
-├── backend/                   # API Server (port 3000)
+├── backend/                   # API サーバー (port 3000)
 │   ├── src/
-│   │   ├── server.ts         # Bun.serve with CORS
-│   │   └── stripeClient.ts   # Stripe SDK initialization
+│   │   ├── server.ts         # Bun.serve (CORS 対応)
+│   │   └── stripeClient.ts   # Stripe SDK 初期化
 │   ├── .env                  # STRIPE_SECRET_KEY
 │   ├── package.json
 │   └── tsconfig.json
 │
-├── frontend/                  # Dev Server (port 3001)
+├── frontend/                  # 開発サーバー (port 3001)
 │   ├── src/
-│   │   ├── App.tsx           # Main component with Elements
-│   │   ├── CheckoutForm.tsx  # Payment form (CardElement)
-│   │   ├── main.tsx          # React entry point
+│   │   ├── App.tsx           # Elements 統合メインコンポーネント
+│   │   ├── CheckoutForm.tsx  # 決済フォーム (CardElement)
+│   │   ├── main.tsx          # React エントリーポイント
 │   │   ├── server.ts         # Bun.serve + Bun.build()
 │   │   └── styles.css
 │   ├── .env                  # PUBLIC_STRIPE_PUBLISHABLE_KEY
@@ -71,25 +71,25 @@ stripe-bun/
 └── README.md
 ```
 
-## Environment Variable Management
+## 環境変数管理
 
-### The PUBLIC_ Prefix Pattern
+### PUBLIC_ プレフィックスパターン
 
-This project uses a **PUBLIC_ prefix pattern** to safely manage environment variables:
+このプロジェクトでは、環境変数を安全に管理するために **PUBLIC_ プレフィックスパターン** を採用しています：
 
-- **Server-only variables** (backend/.env):
-  - `STRIPE_SECRET_KEY` - Never exposed to client
-  - `STRIPE_WEBHOOK_SECRET` - Never exposed to client
+- **サーバー専用変数** (backend/.env):
+  - `STRIPE_SECRET_KEY` - クライアントに絶対公開しない
+  - `STRIPE_WEBHOOK_SECRET` - クライアントに絶対公開しない
 
-- **Client-safe variables** (frontend/.env):
-  - `PUBLIC_STRIPE_PUBLISHABLE_KEY` - Safe to expose to client
-  - Only variables with `PUBLIC_` prefix are injected into client bundle
+- **クライアント安全変数** (frontend/.env):
+  - `PUBLIC_STRIPE_PUBLISHABLE_KEY` - クライアントへの公開が安全
+  - `PUBLIC_` プレフィックスを持つ変数のみクライアントバンドルに注入される
 
-### How It Works
+### 動作原理
 
-The `PUBLIC_` prefix pattern is implemented using Bun's build system:
+`PUBLIC_` プレフィックスパターンは、Bun のビルドシステムを使用して実装されています：
 
-1. **Build Time Injection** (frontend/src/server.ts):
+1. **ビルド時注入** (frontend/src/server.ts):
    ```typescript
    const buildResult = await Bun.build({
      entrypoints: ['./src/main.tsx'],
@@ -103,38 +103,38 @@ The `PUBLIC_` prefix pattern is implemented using Bun's build system:
    })
    ```
 
-2. **Client Usage** (frontend/src/App.tsx):
+2. **クライアント側での使用** (frontend/src/App.tsx):
    ```typescript
-   // At build time, this becomes: const publishableKey = "pk_test_..."
+   // ビルド時に次のように置換される: const publishableKey = "pk_test_..."
    const publishableKey = process.env.PUBLIC_STRIPE_PUBLISHABLE_KEY
    const stripePromise = loadStripe(publishableKey)
    ```
 
-### Security Benefits
+### セキュリティ上の利点
 
-1. **Explicit Intent**: The `PUBLIC_` prefix makes it clear which variables are safe for client exposure
-2. **Build-time Replacement**: Variables are replaced with string literals at build time, not runtime
-3. **No Leakage**: Secret keys without the `PUBLIC_` prefix are never included in the client bundle
-4. **Type Safety**: TypeScript can validate the existence of required variables at build time
+1. **明示的な意図表明**: `PUBLIC_` プレフィックスにより、どの変数がクライアント公開安全かが明確
+2. **ビルド時置換**: 変数はランタイムではなくビルド時に文字列リテラルに置換される
+3. **漏洩防止**: `PUBLIC_` プレフィックスのない秘密鍵は絶対にクライアントバンドルに含まれない
+4. **型安全性**: TypeScript がビルド時に必要な変数の存在を検証可能
 
-## Frontend Development Server
+## フロントエンド開発サーバー
 
-The frontend uses a custom Bun development server that:
+フロントエンドはカスタム Bun 開発サーバーを使用しており、以下の機能を提供します：
 
-1. **Builds on Startup**: Runs `Bun.build()` to transpile and bundle React code
-2. **Injects Environment Variables**: Uses the `define` option to inject `PUBLIC_*` variables
-3. **Serves Static Assets**: Handles HTML, JS, and CSS file serving
-4. **Generates Dynamic HTML**: Creates HTML with hashed JS filenames
+1. **起動時ビルド**: `Bun.build()` を実行して React コードをトランスパイル・バンドル
+2. **環境変数注入**: `define` オプションを使用して `PUBLIC_*` 変数を注入
+3. **静的アセット配信**: HTML、JS、CSS ファイルの配信を処理
+4. **動的 HTML 生成**: ハッシュ付き JS ファイル名を含む HTML を生成
 
-### Key Implementation (frontend/src/server.ts)
+### 主要実装 (frontend/src/server.ts)
 
 ```typescript
-// 1. Validate environment variables
+// 1. 環境変数のバリデーション
 if (!process.env.PUBLIC_STRIPE_PUBLISHABLE_KEY) {
   throw new Error('PUBLIC_STRIPE_PUBLISHABLE_KEY is not set')
 }
 
-// 2. Build React app with env var injection
+// 2. 環境変数注入付きで React アプリをビルド
 const buildResult = await Bun.build({
   entrypoints: ['./src/main.tsx'],
   outdir: './dist',
@@ -147,10 +147,10 @@ const buildResult = await Bun.build({
   },
 })
 
-// 3. Extract built JS filename
+// 3. ビルド済み JS ファイル名を取得
 const jsFileName = buildResult.outputs.find(o => o.path.endsWith('.js')).path.split('/').pop()
 
-// 4. Generate HTML with built JS reference
+// 4. ビルド済み JS を参照する HTML を生成
 const htmlContent = `<!DOCTYPE html>
 <html lang="ja">
   <head>...</head>
@@ -160,7 +160,7 @@ const htmlContent = `<!DOCTYPE html>
   </body>
 </html>`
 
-// 5. Serve with Bun.serve
+// 5. Bun.serve で配信
 Bun.serve({
   port: 3001,
   async fetch(req) {
@@ -172,9 +172,9 @@ Bun.serve({
 })
 ```
 
-## CORS Configuration
+## CORS 設定
 
-The backend enables CORS to allow frontend communication:
+Backend は Frontend との通信を許可するため CORS を有効化しています：
 
 ```typescript
 // backend/src/server.ts
@@ -184,67 +184,65 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type',
 }
 
-// Handle preflight requests
+// Preflight リクエストの処理
 if (req.method === 'OPTIONS') {
   return new Response(null, { status: 204, headers: corsHeaders })
 }
 ```
 
-## Payment Flow
+## 決済フロー
 
-1. **User enters payment amount** → Frontend displays CardElement
-2. **User enters card details** → Stored securely in Stripe iframe (PCI compliant)
-3. **User clicks "Pay"** → Frontend calls backend `/create-payment-intent`
-4. **Backend creates PaymentIntent** → Returns `clientSecret`
-5. **Frontend confirms payment** → `stripe.confirmCardPayment(clientSecret, cardElement)`
-6. **Stripe processes payment** → Returns success/error to frontend
-7. **Frontend displays result** → Success message or error
+1. **ユーザーが金額を入力** → Frontend が CardElement を表示
+2. **ユーザーがカード情報を入力** → Stripe iframe 内で安全に保管（PCI 準拠）
+3. **ユーザーが「支払う」をクリック** → Frontend が Backend の `/create-payment-intent` を呼び出し
+4. **Backend が PaymentIntent を作成** → `clientSecret` を返却
+5. **Frontend が決済を確認** → `stripe.confirmCardPayment(clientSecret, cardElement)`
+6. **Stripe が決済を処理** → Frontend に成功/エラーを返却
+7. **Frontend が結果を表示** → 成功メッセージまたはエラー
 
-## Technology Stack
+## 技術スタック
 
-- **Runtime**: Bun v1.3.2
-- **Frontend**: React 19, @stripe/react-stripe-js v3.10.0, @stripe/stripe-js v5.10.0
-- **Backend**: Bun.serve, Stripe SDK v19+
-- **Build System**: Bun.build() with `define` option for env var injection
+- **ランタイム**: Bun v1.3.2
+- **フロントエンド**: React 19, @stripe/react-stripe-js v3.10.0, @stripe/stripe-js v5.10.0
+- **バックエンド**: Bun.serve, Stripe SDK v19+
+- **ビルドシステム**: Bun.build() (`define` オプションによる環境変数注入)
 - **TypeScript**: Strict mode with ESNext target
 
-## Design Decisions
+## 設計判断
 
-### Why Separate Backend/Frontend?
+### なぜ Backend/Frontend を分離？
 
-1. **Security**: Keep secret keys isolated to backend
-2. **Scalability**: Can deploy backend and frontend independently
-3. **Development**: Easier to work on frontend/backend separately
-4. **Production Ready**: Matches typical production deployment patterns
+1. **セキュリティ**: 秘密鍵を Backend に隔離
+2. **スケーラビリティ**: Backend と Frontend を独立してデプロイ可能
+3. **開発効率**: Frontend/Backend を個別に開発しやすい
+4. **本番環境対応**: 一般的な本番デプロイパターンに適合
 
-### Why Bun.build() Instead of Vite?
+### なぜ Vite ではなく Bun.build()？
 
-1. **Consistency**: Uses same runtime for dev server and build process
-2. **Simplicity**: No additional tools needed
-3. **Performance**: Bun's bundler is fast
-4. **Native Integration**: Built-in TypeScript and JSX support
+1. **一貫性**: 開発サーバーとビルドプロセスで同じランタイムを使用
+2. **シンプルさ**: 追加ツールが不要
+3. **パフォーマンス**: Bun のバンドラーは高速
+4. **ネイティブ統合**: TypeScript と JSX のビルトインサポート
 
-### Why CardElement Instead of Payment Element?
+### なぜ Payment Element ではなく CardElement？
 
-1. **Minimum Viable Product**: Start simple with card payments only
-2. **Learning Curve**: Easier to understand basic Stripe integration
-3. **Future Expansion**: Can upgrade to Payment Element later for multiple payment methods
+1. **最小限の実装**: カード決済のみでシンプルに開始
+2. **学習曲線**: 基本的な Stripe 統合を理解しやすい
+3. **将来の拡張**: 後で Payment Element にアップグレードして複数の決済方法に対応可能
 
-## Next Steps
+## 次のステップ
 
-1. **Database Integration**: Add SQLite for order management
-2. **Webhook Implementation**: Handle payment status updates
-3. **Payment Element Migration**: Support multiple payment methods
-4. **Product Selection UI**: Add cart and product selection features
-5. **Testing**: Add unit and integration tests
-6. **Deployment**: Deploy to Render or Railway
+1. **データベース統合**: 注文管理のため SQLite を追加
+2. **Webhook 実装**: 決済ステータス更新の処理
+3. **Payment Element への移行**: 複数の決済方法に対応
+4. **商品選択 UI**: カートと商品選択機能を追加
+5. **テスト**: ユニットテストと統合テストを追加
+6. **デプロイ**: Render または Railway へデプロイ
 
-## References
+## 参考資料
 
 - [Stripe Elements Documentation](https://stripe.com/docs/stripe-js)
 - [Bun.build() API](https://bun.sh/docs/bundler)
 - [React Stripe.js](https://stripe.com/docs/stripe-js/react)
 
 ---
-
-**Last Updated**: 2025-01-15
