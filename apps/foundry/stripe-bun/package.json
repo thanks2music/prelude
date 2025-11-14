@@ -1,8 +1,13 @@
 {
-  "name": "stripe-bun",
-  "module": "index.ts",
+  "name": "@prelude/stripe-bun",
+  "version": "0.1.0",
   "type": "module",
   "private": true,
+  "scripts": {
+    "dev": "bun run src/server.ts",
+    "start": "bun run src/server.ts",
+    "build": "bun build src/server.ts --outdir=dist"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
