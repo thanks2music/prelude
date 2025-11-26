@@ -1,1 +1,2 @@
-# LINE BOT (Node.js - Express version)
+# LINE BOT (Node.js - Express)
+
