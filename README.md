@@ -10,6 +10,7 @@ REPO_ROOT/
 
   apps/
     foundry/                  # 作業場
+      preludex                # bunx npx package name
       stripe-bun/             # Stripe + Bun(TypeScript)
       line-bot-node-express/  # LINE Bot (Node.js × Express)
       line-bot-bun/           # LINE Bot (Bun)
