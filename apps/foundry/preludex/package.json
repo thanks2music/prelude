@@ -1,6 +1,6 @@
 {
   "name": "preludex",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CLI tool for downloading documentation sites as Markdown files",
   "type": "module",
   "bin": {
@@ -22,7 +22,9 @@
     "documentation",
     "markdown",
     "crawler",
-    "cli"
+    "cli",
+    "playwright",
+    "scraper"
   ],
   "author": "",
   "license": "MIT",
@@ -32,6 +34,13 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/turndown": "^5.0.6",
     "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "p-limit": "^7.2.0",
+    "playwright": "^1.57.0",
+    "turndown": "^7.2.2",
+    "turndown-plugin-gfm": "^1.0.2"
   }
 }
