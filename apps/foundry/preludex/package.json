@@ -1,0 +1,37 @@
+{
+  "name": "preludex",
+  "version": "0.1.0",
+  "description": "CLI tool for downloading documentation sites as Markdown files",
+  "type": "module",
+  "bin": {
+    "preludex": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "bun src/cli.ts",
+    "prepublishOnly": "bun run build"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "docs",
+    "documentation",
+    "markdown",
+    "crawler",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}
