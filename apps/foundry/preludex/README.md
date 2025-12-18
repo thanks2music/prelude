@@ -35,7 +35,7 @@ bunx preludex https://platform.claude.com/docs/en/home --out docs/claude
 
 ---
 
-## 出力ディレクトリ仕様（MVP）
+## 出力ディレクトリ仕様
 
 `--out` オプションで指定したディレクトリをルートとして、
 Docsサイトの論理構造をそのまま反映します。
@@ -118,7 +118,7 @@ npm publish --access public
 
 ---
 
-## ネクストアクション（予定）
+## 今後のアクション予定
 
 ### 1. 再帰クロール対応
 
@@ -135,21 +135,15 @@ npm publish --access public
 
 → サイトごとの軽量アダプタ設計
 
-- Docusaurus
-- VitePress
-- Starlight
-- MkDocs
-- Sphinx
-- GitBook
+- 将来的には、どのライブラリで開発されていてもダウンロード出来るように調整する
+  - Docusaurus
+  - VitePress
+  - Starlight
+  - MkDocs
+  - Sphinx
+  - GitBook
 
-→ ライブラリごとの調整
+### 3. URLに `sitemap.xml` を指定し一括ダウンロード
 
----
-
-## スコープ外（意図的にやらないこと）
-
-- 汎用HTMLスクレイピング
-- DOM構造の完全解析
-- JavaScriptレンダリング前提の全自動取得
-
-これらは必要になった段階で、Playwright等を**オプション**として追加します。
+- デフォルトの挙動: `bunx preludex https://domain.com/docs/ovewview --out docs/domain` でリンクを辿り順番にダウンロードする
+- オプション: `bunx preludex https://domain.com/sitemap.xml --out docs/domain --use-sitemap` でサイトマップから一括ダウンロード出来るようにする
