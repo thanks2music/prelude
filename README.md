@@ -1,6 +1,8 @@
-# Prelude
+![Prelude](docs/readme.jpg)
 
 The starting ground for mastering new stacks and shaping the work that comes next.
+
+# Prelude
 
 ```
 REPO_ROOT/
