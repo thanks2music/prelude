@@ -22,6 +22,40 @@ export interface SiteConfig {
  * Site-specific configurations
  */
 export const siteConfigs: Record<string, SiteConfig> = {
+  // Cloudflare Developers Docs (Starlight)
+  'developers.cloudflare.com': {
+    contentSelector: '[data-pagefind-body], main article, main',
+    removeSelectors: [
+      'nav',
+      'header',
+      'footer',
+      'script',
+      'style',
+      'noscript',
+      'aside',
+      'iframe',
+      'astro-island',
+      'starlight-tabs-restore',
+      'astro-breadcrumbs',
+      '.Breadcrumb',
+      '.DocsSidebar',
+      '.DocsFooter',
+      '.PageFooter',
+      '.feedback',
+      '.DocsToc',
+      '.copy-button',
+      '.CopyCodeButton',
+      '[class*="Footer"]',
+      // Page navigation links
+      '[class*="pagination"]',
+      '[class*="Pagination"]',
+      // Edit/issue links
+      '[href*="github.com"][href*="edit"]',
+    ],
+    waitForSelector: '[data-pagefind-body], article, main',
+    framework: 'starlight',
+  },
+
   // OpenAI Platform Docs
   'platform.openai.com': {
     contentSelector: 'main',
@@ -87,15 +121,24 @@ export const siteConfigs: Record<string, SiteConfig> = {
 
   // Starlight (Astro) sites
   '__starlight__': {
-    contentSelector: '.sl-markdown-content, main',
+    contentSelector: '.sl-markdown-content, article, [data-pagefind-body]',
     removeSelectors: [
       'nav',
       'header',
       'footer',
       '.sidebar',
       '.right-sidebar',
+      'script',
+      'style',
+      'astro-island',
+      'starlight-tabs-restore',
+      'astro-breadcrumbs',
+      '[data-application-name]',
+      '.feedback-widget',
+      '.page-footer',
+      '.copy-button',
     ],
-    waitForSelector: '.sl-markdown-content, main',
+    waitForSelector: '.sl-markdown-content, article',
     framework: 'starlight',
   },
 

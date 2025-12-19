@@ -67,7 +67,19 @@ export async function closeBrowser(): Promise<void> {
  * Extract and clean HTML content from page
  */
 async function extractContent(page: Page, config: SiteConfig): Promise<string> {
-  // Remove unwanted elements
+  // Global cleanup: Remove scripts, styles, and common noise elements
+  await page.evaluate(() => {
+    // Remove all script and style elements globally
+    document.querySelectorAll('script, style, noscript').forEach((el) => el.remove())
+
+    // Remove JSON-LD and other metadata
+    document.querySelectorAll('script[type="application/ld+json"]').forEach((el) => el.remove())
+
+    // Remove common web component elements that contain JavaScript
+    document.querySelectorAll('astro-island, starlight-tabs-restore, astro-breadcrumbs').forEach((el) => el.remove())
+  })
+
+  // Remove config-specific unwanted elements
   for (const selector of config.removeSelectors) {
     await page.evaluate((sel) => {
       document.querySelectorAll(sel).forEach((el) => el.remove())
@@ -97,6 +109,41 @@ async function extractContent(page: Page, config: SiteConfig): Promise<string> {
   }, config.contentSelector)
 
   return html
+}
+
+/**
+ * Clean common footer patterns from markdown
+ */
+function cleanFooterPatterns(markdown: string): string {
+  // Remove common site-wide footer sections
+  // These often appear as lists starting with bold headers like "Resources", "Support", etc.
+  const footerPatterns = [
+    // Match footer sections: "- **Resources**" followed by link lists
+    /\n-\s+\*\*Resources\*\*[\s\S]*?(?=\n## |\n# |$)/gi,
+    /\n-\s+\*\*Support\*\*[\s\S]*?(?=\n## |\n# |\n-\s+\*\*|$)/gi,
+    /\n-\s+\*\*Company\*\*[\s\S]*?(?=\n## |\n# |\n-\s+\*\*|$)/gi,
+    /\n-\s+\*\*Tools\*\*[\s\S]*?(?=\n## |\n# |\n-\s+\*\*|$)/gi,
+    /\n-\s+\*\*Community\*\*[\s\S]*?(?=\n## |\n# |\n-\s+\*\*|$)/gi,
+    // Copyright notices
+    /\n-\s+©\s+\d{4}.*$/gim,
+    // Privacy/Terms links at end
+    /\n-\s+\[Privacy Policy\].*$/gim,
+    /\n-\s+\[Terms of Use\].*$/gim,
+    /\n-\s+\[Report Security Issues\].*$/gim,
+    /\n-\s+\[Trademark\].*$/gim,
+    // Cookie settings
+    /\n-\s+!\[privacy options\].*Cookie Settings.*$/gim,
+  ]
+
+  let cleaned = markdown
+  for (const pattern of footerPatterns) {
+    cleaned = cleaned.replace(pattern, '')
+  }
+
+  // Clean up trailing whitespace and multiple newlines
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim()
+
+  return cleaned
 }
 
 /**
@@ -178,7 +225,10 @@ export const playwrightAdapter: SiteAdapter = {
       // Convert to markdown
       const markdown = turndown.turndown(absoluteHtml)
 
-      return markdown
+      // Clean common footer patterns
+      const cleanedMarkdown = cleanFooterPatterns(markdown)
+
+      return cleanedMarkdown
     } finally {
       await page.close()
     }
