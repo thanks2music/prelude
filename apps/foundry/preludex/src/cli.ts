@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { crawl } from './crawl.js'
 import { defaults } from './config/defaults.js'
+import { validateUrl } from './validation.js'
 import type { CrawlOptions } from './adapters/types.js'
 
 // Read version from package.json
@@ -112,6 +113,8 @@ const [, , ...args] = process.argv
 const { url, options } = parseArgs(args)
 
 try {
+  // Validate URL before crawling
+  validateUrl(url)
   await crawl(url, options)
 } catch (error) {
   const msg = error instanceof Error ? error.message : String(error)
