@@ -1,8 +1,15 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 import { crawl } from './crawl.js'
 import type { CrawlOptions } from './adapters/types.js'
 
-const VERSION = '0.2.0'
+// Read version from package.json
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const pkgPath = join(__dirname, '..', 'package.json')
+const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as { version: string }
+const VERSION = pkg.version
 
 /**
  * Parse command line arguments
