@@ -1,5 +1,6 @@
 {
-  "name": "preludex",
+  "name": "preludex-on-prelude",
+  "private": true,
   "version": "0.2.0",
   "description": "CLI tool for downloading documentation sites as Markdown files",
   "type": "module",
@@ -24,10 +25,17 @@
     "crawler",
     "cli",
     "playwright",
-    "scraper"
+    "scraper",
+    "docusaurus",
+    "vitepress",
+    "mkdocs",
+    "sphinx",
+    "gitbook",
+    "offline-docs"
   ],
-  "author": "",
+  "author": "thanks2music <thanks2music@gmail.com>",
   "license": "MIT",
+  "homepage": "",
   "repository": {
     "type": "git",
     "url": ""
