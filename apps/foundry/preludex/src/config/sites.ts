@@ -154,6 +154,39 @@ export const siteConfigs: Record<string, SiteConfig> = {
     waitForSelector: '.md-content, article',
     framework: 'mkdocs',
   },
+
+  // Sphinx sites (including Furo theme)
+  '__sphinx__': {
+    contentSelector: '#furo-main-content, .document, .body, article[role="main"], .rst-content',
+    removeSelectors: [
+      // Common Sphinx elements
+      '.sphinxsidebar',
+      '.related',
+      '.footer',
+      '.clearer',
+      // Furo theme elements
+      '.sidebar-drawer',
+      '.toc-drawer',
+      '.toc-scroll',
+      '.toc-tree-container',
+      '.page-toc',
+      '.content-icon-container',
+      '.back-to-top',
+      '.header-article',
+      '.announcement',
+      // Read the Docs theme elements
+      '.wy-nav-side',
+      '.wy-nav-top',
+      '.rst-footer-buttons',
+      '.wy-side-nav-search',
+      // Copy buttons
+      '.copybtn',
+      '.copybutton',
+      'button.copy',
+    ],
+    waitForSelector: '#furo-main-content, .document, article[role="main"]',
+    framework: 'sphinx',
+  },
 }
 
 /**
@@ -220,10 +253,12 @@ export const frameworkPatterns: FrameworkPattern[] = [
     framework: 'docusaurus',
     selectors: [
       '.theme-doc-markdown',
-      '[data-theme]',
       '.docusaurus-highlight-code-line',
       '.navbar__brand',
       '.menu__link',
+      // More specific Docusaurus selectors
+      '[class*="docusaurus"]',
+      '.pagination-nav',
     ],
     htmlPatterns: [
       /docusaurus/i,
@@ -287,17 +322,26 @@ export const frameworkPatterns: FrameworkPattern[] = [
   {
     framework: 'sphinx',
     selectors: [
+      // Traditional Sphinx / Read the Docs theme
       '.sphinxsidebar',
       '.document',
       '.bodywrapper',
       '[class*="sphinx"]',
       '.rst-content',
+      // Furo theme (modern Sphinx theme)
+      '#furo-main-content',
+      '.furo-main',
+      '[href*="sphinx-doc.org"]',
     ],
     htmlPatterns: [
       /sphinx/i,
       /<meta[^>]*generator[^>]*Sphinx/i,
       /sphinx_rtd_theme/,
       /_static\/sphinx/,
+      // Furo theme patterns
+      /pradyunsg.*furo/i,
+      /furo\.css/i,
+      /Made with.*Sphinx/i,
     ],
     weight: 10,
   },
