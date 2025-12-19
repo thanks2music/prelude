@@ -2,7 +2,13 @@ import { chromium, type Browser, type Page } from 'playwright'
 import TurndownService from 'turndown'
 import { gfm } from 'turndown-plugin-gfm'
 import type { SiteAdapter } from './types.js'
-import { getSiteConfig } from '../config/sites.js'
+import {
+  getSiteConfig,
+  getFrameworkConfig,
+  detectFrameworkFromPage,
+  defaultSiteConfig,
+  type SiteConfig,
+} from '../config/sites.js'
 
 // Initialize turndown with GFM support
 const turndown = new TurndownService({
@@ -60,9 +66,7 @@ export async function closeBrowser(): Promise<void> {
 /**
  * Extract and clean HTML content from page
  */
-async function extractContent(page: Page, url: URL): Promise<string> {
-  const config = getSiteConfig(url)
-
+async function extractContent(page: Page, config: SiteConfig): Promise<string> {
   // Remove unwanted elements
   for (const selector of config.removeSelectors) {
     await page.evaluate((sel) => {
@@ -136,13 +140,26 @@ export const playwrightAdapter: SiteAdapter = {
     const page = await browserInstance.newPage()
 
     try {
-      const config = getSiteConfig(url)
+      let config = getSiteConfig(url)
+      const isDefaultConfig = config === defaultSiteConfig
 
       // Navigate to page with domcontentloaded (faster than networkidle)
       await page.goto(url.toString(), {
         waitUntil: 'domcontentloaded',
         timeout: 30000,
       })
+
+      // If using default config, try to auto-detect framework
+      if (isDefaultConfig) {
+        const { framework, confidence } = await detectFrameworkFromPage(page)
+        if (framework !== 'custom' && confidence >= 0.3) {
+          const frameworkConfig = getFrameworkConfig(framework)
+          if (frameworkConfig) {
+            console.log(`  [auto-detect] Framework: ${framework} (confidence: ${Math.round(confidence * 100)}%)`)
+            config = frameworkConfig
+          }
+        }
+      }
 
       // Wait for main content selector
       try {
@@ -153,7 +170,7 @@ export const playwrightAdapter: SiteAdapter = {
       }
 
       // Extract content
-      const html = await extractContent(page, url)
+      const html = await extractContent(page, config)
 
       // Convert URLs to absolute
       const absoluteHtml = absolutizeUrls(html, url)

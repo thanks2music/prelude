@@ -144,18 +144,256 @@ export function getSiteConfig(url: URL): SiteConfig {
     return siteConfigs[url.hostname]
   }
 
-  // TODO: Auto-detect framework from HTML structure
-  // For now, return default config
+  // Return default config (framework detection happens after page load)
   return defaultSiteConfig
 }
 
 /**
- * Detect documentation framework from page content
- * TODO: Implement framework detection based on HTML/JS signatures
+ * Get framework-specific configuration
  */
-export async function detectFramework(
-  _html: string
-): Promise<SiteConfig['framework']> {
-  // Placeholder for future implementation
-  return 'custom'
+export function getFrameworkConfig(
+  framework: SiteConfig['framework']
+): SiteConfig | null {
+  const frameworkKey = `__${framework}__`
+  return siteConfigs[frameworkKey] || null
+}
+
+/**
+ * Framework detection patterns
+ * Each pattern includes CSS selectors or HTML content patterns to identify a framework
+ */
+export interface FrameworkPattern {
+  framework: NonNullable<SiteConfig['framework']>
+  /** CSS selectors that indicate this framework */
+  selectors: string[]
+  /** HTML content patterns (e.g., meta tags, script names) */
+  htmlPatterns: RegExp[]
+  /** Confidence weight (higher = more reliable) */
+  weight: number
+}
+
+export const frameworkPatterns: FrameworkPattern[] = [
+  {
+    framework: 'docusaurus',
+    selectors: [
+      '.theme-doc-markdown',
+      '[data-theme]',
+      '.docusaurus-highlight-code-line',
+      '.navbar__brand',
+      '.menu__link',
+    ],
+    htmlPatterns: [
+      /docusaurus/i,
+      /<meta[^>]*generator[^>]*Docusaurus/i,
+      /\/@docusaurus\//,
+      /docusaurus\.config/,
+    ],
+    weight: 10,
+  },
+  {
+    framework: 'vitepress',
+    selectors: [
+      '.vp-doc',
+      '.VPNav',
+      '.VPSidebar',
+      '.VPContent',
+      '.vp-code',
+      '[class*="VPHome"]',
+    ],
+    htmlPatterns: [
+      /vitepress/i,
+      /<meta[^>]*generator[^>]*VitePress/i,
+      /vitepress\.css/,
+      /__VP_/,
+    ],
+    weight: 10,
+  },
+  {
+    framework: 'starlight',
+    selectors: [
+      '.sl-markdown-content',
+      '[data-starlight]',
+      '.starlight-aside',
+      'astro-island',
+    ],
+    htmlPatterns: [
+      /starlight/i,
+      /<meta[^>]*generator[^>]*Astro/i,
+      /Starlight/,
+      /@astrojs\/starlight/,
+    ],
+    weight: 10,
+  },
+  {
+    framework: 'mkdocs',
+    selectors: [
+      '.md-content',
+      '.md-header',
+      '.md-sidebar',
+      '.md-nav',
+      '[data-md-component]',
+    ],
+    htmlPatterns: [
+      /mkdocs/i,
+      /<meta[^>]*generator[^>]*mkdocs/i,
+      /material-?for-?mkdocs/i,
+      /mkdocs\.yml/,
+    ],
+    weight: 10,
+  },
+  {
+    framework: 'sphinx',
+    selectors: [
+      '.sphinxsidebar',
+      '.document',
+      '.bodywrapper',
+      '[class*="sphinx"]',
+      '.rst-content',
+    ],
+    htmlPatterns: [
+      /sphinx/i,
+      /<meta[^>]*generator[^>]*Sphinx/i,
+      /sphinx_rtd_theme/,
+      /_static\/sphinx/,
+    ],
+    weight: 10,
+  },
+  {
+    framework: 'gitbook',
+    selectors: [
+      '.gitbook-root',
+      '[data-gitbook]',
+      '.space-navigation',
+      '.page-inner',
+    ],
+    htmlPatterns: [
+      /gitbook/i,
+      /app\.gitbook\.com/,
+      /gitbook-x-reason/,
+    ],
+    weight: 10,
+  },
+]
+
+/**
+ * Detect documentation framework from HTML content
+ * Returns the detected framework and confidence score
+ */
+export function detectFramework(html: string): {
+  framework: SiteConfig['framework']
+  confidence: number
+} {
+  const scores: Record<string, number> = {}
+
+  for (const pattern of frameworkPatterns) {
+    let score = 0
+
+    // Check HTML patterns
+    for (const regex of pattern.htmlPatterns) {
+      if (regex.test(html)) {
+        score += pattern.weight
+      }
+    }
+
+    // Check for selector patterns in HTML (simplified check)
+    for (const selector of pattern.selectors) {
+      // Convert CSS selector to a simple pattern
+      const selectorPattern = selector
+        .replace(/\./g, 'class="[^"]*')
+        .replace(/\[([^\]]+)\]/g, '$1')
+
+      if (new RegExp(selectorPattern, 'i').test(html)) {
+        score += pattern.weight / 2
+      }
+    }
+
+    if (score > 0) {
+      scores[pattern.framework] = score
+    }
+  }
+
+  // Find framework with highest score
+  let maxFramework: SiteConfig['framework'] = 'custom'
+  let maxScore = 0
+
+  for (const [framework, score] of Object.entries(scores)) {
+    if (score > maxScore) {
+      maxScore = score
+      maxFramework = framework as SiteConfig['framework']
+    }
+  }
+
+  // Return 'custom' if confidence is too low
+  const confidence = maxScore > 0 ? Math.min(maxScore / 30, 1) : 0
+
+  return {
+    framework: maxFramework,
+    confidence,
+  }
+}
+
+/**
+ * Detect framework from a Playwright page
+ * More reliable than HTML string detection as it can check actual DOM
+ */
+export async function detectFrameworkFromPage(
+  page: import('playwright').Page
+): Promise<{
+  framework: SiteConfig['framework']
+  confidence: number
+}> {
+  const results = await page.evaluate((patterns) => {
+    const scores: Record<string, number> = {}
+
+    for (const pattern of patterns) {
+      let score = 0
+
+      // Check selectors directly in DOM
+      for (const selector of pattern.selectors) {
+        try {
+          if (document.querySelector(selector)) {
+            score += pattern.weight
+          }
+        } catch {
+          // Invalid selector, skip
+        }
+      }
+
+      // Check HTML patterns
+      const html = document.documentElement.outerHTML
+      for (const patternStr of pattern.htmlPatterns) {
+        const regex = new RegExp(patternStr)
+        if (regex.test(html)) {
+          score += pattern.weight / 2
+        }
+      }
+
+      if (score > 0) {
+        scores[pattern.framework] = score
+      }
+    }
+
+    return scores
+  }, frameworkPatterns.map(p => ({
+    ...p,
+    htmlPatterns: p.htmlPatterns.map(r => r.source),
+  })))
+
+  // Find framework with highest score
+  let maxFramework: SiteConfig['framework'] = 'custom'
+  let maxScore = 0
+
+  for (const [framework, score] of Object.entries(results)) {
+    if (score > maxScore) {
+      maxScore = score
+      maxFramework = framework as SiteConfig['framework']
+    }
+  }
+
+  const confidence = maxScore > 0 ? Math.min(maxScore / 30, 1) : 0
+
+  return {
+    framework: maxFramework,
+    confidence,
+  }
 }
