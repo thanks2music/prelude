@@ -1,5 +1,6 @@
 import type { SiteAdapter } from './types.js'
 import { toMdUrl } from '../url.js'
+import { defaults } from '../config/defaults.js'
 
 /**
  * Fetch text content with proper headers
@@ -7,7 +8,7 @@ import { toMdUrl } from '../url.js'
 async function fetchText(url: URL): Promise<string> {
   const res = await fetch(url.toString(), {
     headers: {
-      'User-Agent': 'Mozilla/5.0 preludex/0.1.0',
+      'User-Agent': defaults.userAgent,
       Accept: 'text/markdown,text/plain,text/html,*/*',
     },
   })

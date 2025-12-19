@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { crawl } from './crawl.js'
+import { defaults } from './config/defaults.js'
 import type { CrawlOptions } from './adapters/types.js'
 
 // Read version from package.json
@@ -28,11 +29,11 @@ function parseArgs(args: string[]): { url: string; options: CrawlOptions } {
   }
 
   const options: CrawlOptions = {
-    outDir: 'docs',
+    outDir: defaults.outDir,
     useJina: false,
     useSitemap: false,
-    depth: 1,
-    concurrency: 3,
+    depth: defaults.depth,
+    concurrency: defaults.concurrency,
     verbose: false,
   }
 
@@ -42,7 +43,7 @@ function parseArgs(args: string[]): { url: string; options: CrawlOptions } {
     switch (arg) {
       case '--out':
       case '-o':
-        options.outDir = args[++i] || 'docs'
+        options.outDir = args[++i] || defaults.outDir
         break
       case '--use-jina':
         options.useJina = true
@@ -53,13 +54,13 @@ function parseArgs(args: string[]): { url: string; options: CrawlOptions } {
       case '--depth':
       case '-d': {
         const d = parseInt(args[++i], 10)
-        options.depth = isNaN(d) ? 1 : d
+        options.depth = isNaN(d) ? defaults.depth : d
         break
       }
       case '--concurrency':
       case '-c': {
         const c = parseInt(args[++i], 10)
-        options.concurrency = isNaN(c) || c < 1 ? 3 : c
+        options.concurrency = isNaN(c) || c < 1 ? defaults.concurrency : c
         break
       }
       case '--verbose':
