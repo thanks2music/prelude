@@ -187,6 +187,43 @@ export const siteConfigs: Record<string, SiteConfig> = {
     waitForSelector: '#furo-main-content, .document, article[role="main"]',
     framework: 'sphinx',
   },
+
+  // GitBook sites (modern 2024+ structure)
+  '__gitbook__': {
+    contentSelector: 'main',
+    removeSelectors: [
+      // Header and navigation
+      'banner',
+      'header',
+      '[role="banner"]',
+      // Sidebar
+      'complementary',
+      '[role="complementary"]',
+      // Footer
+      'contentinfo',
+      '[role="contentinfo"]',
+      // Breadcrumb
+      'nav[aria-label="Breadcrumb"]',
+      '[aria-label="Breadcrumb"]',
+      // Previous/Next navigation (adjacent to main content)
+      'a[href][class*="Previous"]',
+      'a[href][class*="Next"]',
+      // Copy button
+      'button[aria-label="Copy page"]',
+      '[aria-label="Copy page"]',
+      // More button
+      'button[aria-label="More"]',
+      // Feedback section ("Was this helpful?")
+      '[class*="feedback"]',
+      // Table of contents sidebar
+      '[data-testid="table-of-contents"]',
+      '[data-testid="toc-scroll-container"]',
+      // Announcement banners
+      '[class*="announcement"]',
+    ],
+    waitForSelector: 'main',
+    framework: 'gitbook',
+  },
 }
 
 /**
@@ -348,15 +385,23 @@ export const frameworkPatterns: FrameworkPattern[] = [
   {
     framework: 'gitbook',
     selectors: [
+      // Legacy GitBook selectors
       '.gitbook-root',
       '[data-gitbook]',
       '.space-navigation',
       '.page-inner',
+      // Modern GitBook selectors (2024+)
+      '[class*="page-width-default"]',
+      '[class*="site-width-default"]',
+      '[data-testid="table-of-contents"]',
+      '[href*="gitbook.com"][href*="utm_source"]',
     ],
     htmlPatterns: [
       /gitbook/i,
       /app\.gitbook\.com/,
       /gitbook-x-reason/,
+      /Powered by GitBook/i,
+      /gitbook\.io/,
     ],
     weight: 10,
   },

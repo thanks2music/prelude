@@ -133,12 +133,23 @@ function cleanFooterPatterns(markdown: string): string {
     /\n-\s+\[Trademark\].*$/gim,
     // Cookie settings
     /\n-\s+!\[privacy options\].*Cookie Settings.*$/gim,
+
+    // GitBook-specific patterns
+    // Note: Previous/Next links are kept as they're useful for navigation
+    // "Last updated X ago" line
+    /\nLast updated.*(?:ago|yesterday|today)\s*$/gim,
+    // "Was this helpful?" section
+    /\nWas this helpful\?\s*$/gim,
   ]
 
   let cleaned = markdown
   for (const pattern of footerPatterns) {
     cleaned = cleaned.replace(pattern, '')
   }
+
+  // GitBook: Fix empty headings followed by anchor links
+  // Pattern: "## \n\n[](#anchor)\n\nHeading Text" -> "## Heading Text"
+  cleaned = cleaned.replace(/^(#{2,})\s*\n\n\[]\(#[^)]+\)\n\n(.+)$/gm, '$1 $2')
 
   // Clean up trailing whitespace and multiple newlines
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim()
