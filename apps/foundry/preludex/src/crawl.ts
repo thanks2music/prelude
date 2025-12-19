@@ -1,5 +1,5 @@
 import pLimit from 'p-limit'
-import { normalizePageUrl, toLocalPath } from './url.js'
+import { normalizePageUrl, toLocalPath, detectBasePath } from './url.js'
 import { extractDocLinks } from './md.js'
 import { saveFile } from './fs.js'
 import { fetchWithFallback, closeBrowser, type CrawlOptions } from './adapters/index.js'
@@ -175,21 +175,6 @@ async function crawlWithLinks(
       )
     )
   }
-}
-
-/**
- * Detect the base path from URL
- */
-function detectBasePath(url: URL): string | undefined {
-  const pathParts = url.pathname.split('/').filter(Boolean)
-  const docPatterns = ['docs', 'documentation', 'guide', 'guides', 'api', 'reference']
-
-  for (const part of pathParts) {
-    if (docPatterns.includes(part.toLowerCase())) {
-      return `/${part}/`
-    }
-  }
-  return undefined
 }
 
 /**

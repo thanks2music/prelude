@@ -1,3 +1,5 @@
+import { docPatterns } from './config/patterns.js'
+
 /**
  * Normalize a URL by removing hash and search params
  */
@@ -21,6 +23,22 @@ export function toMdUrl(pageUrl: URL): URL {
 }
 
 /**
+ * Detect the base path for documentation from URL
+ * e.g., https://example.com/docs/getting-started -> /docs/
+ */
+export function detectBasePath(url: URL): string | undefined {
+  const pathParts = url.pathname.split('/').filter(Boolean)
+
+  for (const part of pathParts) {
+    if (docPatterns.includes(part.toLowerCase() as (typeof docPatterns)[number])) {
+      return `/${part}/`
+    }
+  }
+
+  return undefined
+}
+
+/**
  * Convert URL to local file path
  *
  * Examples:
@@ -32,11 +50,10 @@ export function toLocalPath(pageUrl: URL): string {
   const parts = pageUrl.pathname.split('/').filter(Boolean)
 
   // Find documentation root (docs, documentation, api, guide, etc.)
-  const docPatterns = ['docs', 'documentation', 'guide', 'guides', 'api', 'reference']
   let startIndex = 0
 
   for (let i = 0; i < parts.length; i++) {
-    if (docPatterns.includes(parts[i].toLowerCase())) {
+    if (docPatterns.includes(parts[i].toLowerCase() as (typeof docPatterns)[number])) {
       startIndex = i + 1
       break
     }

@@ -1,3 +1,5 @@
+import { detectBasePath } from './url.js'
+
 /**
  * Options for link extraction
  */
@@ -74,23 +76,4 @@ export function extractDocLinks(
   }
 
   return [...links].map((u) => new URL(u))
-}
-
-/**
- * Detect the base path for documentation from URL
- * e.g., https://example.com/docs/getting-started -> /docs/
- */
-function detectBasePath(url: URL): string | undefined {
-  const pathParts = url.pathname.split('/').filter(Boolean)
-
-  // Common documentation path patterns
-  const docPatterns = ['docs', 'documentation', 'guide', 'guides', 'api', 'reference']
-
-  for (const part of pathParts) {
-    if (docPatterns.includes(part.toLowerCase())) {
-      return `/${part}/`
-    }
-  }
-
-  return undefined
 }

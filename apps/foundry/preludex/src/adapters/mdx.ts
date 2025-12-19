@@ -1,16 +1,5 @@
 import type { SiteAdapter } from './types.js'
-
-/**
- * Convert page URL to MDX/MD URL
- * e.g., /docs/overview -> /docs/overview.md
- */
-function toMdUrl(url: URL): URL {
-  const mdUrl = new URL(url.toString())
-  if (!mdUrl.pathname.endsWith('.md') && !mdUrl.pathname.endsWith('.mdx')) {
-    mdUrl.pathname = mdUrl.pathname.replace(/\/$/, '') + '.md'
-  }
-  return mdUrl
-}
+import { toMdUrl } from '../url.js'
 
 /**
  * Fetch text content with proper headers
