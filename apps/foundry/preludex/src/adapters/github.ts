@@ -1,6 +1,10 @@
 import type { SiteAdapter } from './types.js'
 import { isGitHubUrl, parseGitHubUrl, toGitHubRawUrl } from '../url.js'
 import { defaults } from '../config/defaults.js'
+import { fetchWithRetry } from '../utils/retry.js'
+import { rateLimitManager } from './github-rate-limit.js'
+import { logger } from '../utils/logger.js'
+import { githubCache } from '../cache/github-cache.js'
 
 /**
  * GitHub API response types
@@ -25,9 +29,18 @@ interface GitHubTreeResponse {
  * リポジトリのデフォルトブランチを取得
  */
 async function getDefaultBranch(owner: string, repo: string): Promise<string> {
+  const cacheKey = `branch:${owner}/${repo}`
+
+  // Check cache first
+  const cached = githubCache.get<string>(cacheKey)
+  if (cached) {
+    logger.debug(`Using cached default branch for ${owner}/${repo}: ${cached}`)
+    return cached
+  }
+
   const url = `https://api.github.com/repos/${owner}/${repo}`
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     headers: {
       Accept: 'application/vnd.github.v3+json',
       'User-Agent': defaults.userAgent,
@@ -37,13 +50,23 @@ async function getDefaultBranch(owner: string, repo: string): Promise<string> {
     },
   })
 
+  // Update rate limit info
+  rateLimitManager.update(response.headers)
+  await rateLimitManager.waitIfNeeded()
+
   if (!response.ok) {
-    console.warn(`Failed to get default branch: ${response.status}`)
+    logger.warn(`Failed to get default branch: ${response.status}`)
     return 'main'
   }
 
   const data = (await response.json()) as { default_branch?: string }
-  return data.default_branch || 'main'
+  const branch = data.default_branch || 'main'
+
+  // Cache the result
+  githubCache.set(cacheKey, branch)
+  logger.debug(`Cached default branch for ${owner}/${repo}: ${branch}`)
+
+  return branch
 }
 
 /**
@@ -68,7 +91,7 @@ async function fetchRepoTree(
 ): Promise<GitHubTreeItem[]> {
   const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     headers: {
       Accept: 'application/vnd.github.v3+json',
       'User-Agent': defaults.userAgent,
@@ -77,6 +100,10 @@ async function fetchRepoTree(
       }),
     },
   })
+
+  // Update rate limit info
+  rateLimitManager.update(response.headers)
+  await rateLimitManager.waitIfNeeded()
 
   if (!response.ok) {
     throw new Error(
@@ -87,8 +114,8 @@ async function fetchRepoTree(
   const data = (await response.json()) as GitHubTreeResponse
 
   if (data.truncated) {
-    console.warn('Warning: Repository tree is truncated (>100,000 entries)')
-    console.warn('Falling back to Contents API for docs/ directory')
+    logger.warn('Warning: Repository tree is truncated (>100,000 entries)')
+    logger.warn('Falling back to Contents API for docs/ directory')
     return await fetchDocsDirWithContentsAPI(owner, repo, branch)
   }
 
@@ -115,7 +142,11 @@ async function fetchDocsDirWithContentsAPI(
   // README取得
   try {
     const readmeUrl = `https://api.github.com/repos/${owner}/${repo}/readme?ref=${branch}`
-    const readmeRes = await fetch(readmeUrl, { headers })
+    const readmeRes = await fetchWithRetry(readmeUrl, { headers })
+
+    // Update rate limit info
+    rateLimitManager.update(readmeRes.headers)
+    await rateLimitManager.waitIfNeeded()
 
     if (readmeRes.ok) {
       const readme = (await readmeRes.json()) as {
@@ -134,7 +165,7 @@ async function fetchDocsDirWithContentsAPI(
       })
     }
   } catch (error) {
-    console.warn('README not found')
+    logger.warn('README not found')
   }
 
   // docs/配下を再帰取得
@@ -142,7 +173,12 @@ async function fetchDocsDirWithContentsAPI(
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`
 
     try {
-      const res = await fetch(url, { headers })
+      const res = await fetchWithRetry(url, { headers })
+
+      // Update rate limit info
+      rateLimitManager.update(res.headers)
+      await rateLimitManager.waitIfNeeded()
+
       if (!res.ok) return
 
       const contents = (await res.json()) as Array<{
@@ -170,7 +206,7 @@ async function fetchDocsDirWithContentsAPI(
         }
       }
     } catch (error) {
-      console.warn(`Failed to fetch directory: ${path}`)
+      logger.warn(`Failed to fetch directory: ${path}`)
     }
   }
 
@@ -201,7 +237,7 @@ function filterMarkdownFiles(
  * Fetch raw markdown content from GitHub
  */
 export async function fetchRawMarkdown(rawUrl: string): Promise<string> {
-  const response = await fetch(rawUrl, {
+  const response = await fetchWithRetry(rawUrl, {
     headers: {
       'User-Agent': defaults.userAgent,
       Accept: 'text/plain,text/markdown,*/*',
@@ -210,6 +246,19 @@ export async function fetchRawMarkdown(rawUrl: string): Promise<string> {
 
   if (!response.ok) {
     throw new Error(`Failed to fetch: ${response.status} ${rawUrl}`)
+  }
+
+  // Check file size to prevent memory issues
+  const contentLength = response.headers.get('Content-Length')
+  if (contentLength) {
+    const sizeBytes = parseInt(contentLength)
+    if (sizeBytes > defaults.maxFileSizeBytes) {
+      const sizeMB = (sizeBytes / 1024 / 1024).toFixed(2)
+      const maxMB = (defaults.maxFileSizeBytes / 1024 / 1024).toFixed(0)
+      throw new Error(
+        `File too large: ${sizeMB}MB exceeds maximum ${maxMB}MB limit - ${rawUrl}`
+      )
+    }
   }
 
   return response.text()
@@ -248,12 +297,16 @@ export const githubAdapter: SiteAdapter = {
     // README.mdを取得（/readme APIで拡張子揺れ対応）
     try {
       const readmeApiUrl = `https://api.github.com/repos/${info.owner}/${info.repo}/readme${info.branch ? `?ref=${info.branch}` : ''}`
-      const response = await fetch(readmeApiUrl, {
+      const response = await fetchWithRetry(readmeApiUrl, {
         headers: {
           Accept: 'application/vnd.github.v3+json',
           'User-Agent': defaults.userAgent,
         },
       })
+
+      // Update rate limit info
+      rateLimitManager.update(response.headers)
+      await rateLimitManager.waitIfNeeded()
 
       if (response.ok) {
         const readme = (await response.json()) as { download_url: string }
@@ -261,7 +314,7 @@ export const githubAdapter: SiteAdapter = {
         return fetchRawMarkdown(rawUrl)
       }
     } catch (error) {
-      console.warn('README not found, returning placeholder')
+      logger.warn('README not found, returning placeholder')
     }
 
     // READMEが見つからない場合は空のプレースホルダー
