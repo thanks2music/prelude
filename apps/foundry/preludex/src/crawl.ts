@@ -1,15 +1,34 @@
 import pLimit from 'p-limit'
-import { normalizePageUrl, toLocalPath, detectBasePath } from './url.js'
+import {
+  normalizePageUrl,
+  toLocalPath,
+  detectBasePath,
+  isGitHubUrl,
+} from './url.js'
 import { extractDocLinks } from './md.js'
 import { saveFile } from './fs.js'
-import { fetchWithFallback, closeBrowser, type CrawlOptions } from './adapters/index.js'
+import {
+  fetchWithFallback,
+  closeBrowser,
+  listGitHubMarkdownFiles,
+  fetchRawMarkdown,
+  type CrawlOptions,
+} from './adapters/index.js'
 import { parseSitemap, findSitemapUrl, filterByBasePath } from './sitemap.js'
+import { validateFilePath } from './utils/path.js'
 
 /**
  * Crawl a documentation site and save as markdown files
  */
 export async function crawl(entry: string, options: CrawlOptions): Promise<void> {
   const entryUrl = normalizePageUrl(entry)
+
+  // GitHub repository special handling
+  if (isGitHubUrl(entryUrl)) {
+    await crawlGitHubRepo(entryUrl, options)
+    return
+  }
+
   const visited = new Set<string>()
   const failed: string[] = []
 
@@ -174,6 +193,73 @@ async function crawlWithLinks(
         })
       )
     )
+  }
+}
+
+/**
+ * Crawl GitHub repository
+ * NOTE: raw URLを直接取得する（fetchWithFallbackは使用しない）
+ */
+async function crawlGitHubRepo(
+  entryUrl: URL,
+  options: CrawlOptions
+): Promise<void> {
+  console.log(`Detected GitHub repository: ${entryUrl}`)
+  console.log('Using GitHub adapter for direct markdown access')
+  console.log('')
+
+  const visited = new Set<string>()
+  const failed: string[] = []
+  const limit = pLimit(options.concurrency || 3)
+
+  try {
+    // List all markdown files in the repository
+    const files = await listGitHubMarkdownFiles(entryUrl)
+    console.log(`Found ${files.length} markdown files`)
+    console.log('')
+
+    // Download all files in parallel
+    const batches = chunkArray(files, options.concurrency || 3)
+
+    for (const batch of batches) {
+      await Promise.all(
+        batch.map((file) =>
+          limit(async () => {
+            if (visited.has(file.path)) return
+            visited.add(file.path)
+
+            try {
+              // Fetch markdown content directly from raw URL
+              const content = await fetchRawMarkdown(file.rawUrl)
+
+              // Validate and save to disk (preserve repository structure)
+              const safePath = validateFilePath(file.path, options.outDir)
+              await saveFile(safePath, content)
+
+              console.log(`[github] Saved: ${safePath}`)
+            } catch (error) {
+              const msg = error instanceof Error ? error.message : String(error)
+              console.warn(`Failed: ${file.path} - ${msg}`)
+              failed.push(file.path)
+            }
+          })
+        )
+      )
+    }
+
+    // Summary
+    console.log('')
+    console.log('='.repeat(50))
+    console.log(`Done! Saved ${visited.size} files to ${options.outDir}`)
+    if (failed.length > 0) {
+      console.log(`Failed: ${failed.length} files`)
+      if (options.verbose) {
+        failed.forEach((path) => console.log(`  - ${path}`))
+      }
+    }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    throw new Error(`GitHub crawl failed: ${msg}`)
   }
 }
 
