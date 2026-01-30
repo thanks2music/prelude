@@ -51,16 +51,30 @@ export function extractDocLinks(
           continue
         }
 
-        const url = new URL(raw, base)
+        let url = new URL(raw, base)
 
         // Same origin check
         if (url.origin !== base.origin && !options.includeExternal) {
           continue
         }
 
-        // Base path check (if specified)
+        // Handle .md endpoint relative links (e.g., /en/plugins -> /docs/en/plugins)
+        // When content comes from .md endpoint, links like /en/plugins are relative
+        // to the docs root, not the site root
         if (basePath && !url.pathname.startsWith(basePath)) {
-          continue
+          // If raw link starts with / and doesn't include basePath,
+          // try prepending basePath (this handles .md endpoint format)
+          if (raw.startsWith('/') && !raw.startsWith(basePath)) {
+            const adjustedPath = basePath.replace(/\/$/, '') + raw
+            const adjustedUrl = new URL(adjustedPath, base.origin)
+            if (adjustedUrl.pathname.startsWith(basePath)) {
+              url = adjustedUrl
+            } else {
+              continue
+            }
+          } else {
+            continue
+          }
         }
 
         // Skip files with extensions (images, PDFs, etc.)
