@@ -1,0 +1,54 @@
+{
+  "name": "preludex-on-prelude",
+  "private": true,
+  "version": "0.2.0",
+  "description": "CLI tool for downloading documentation sites as Markdown files",
+  "type": "module",
+  "bin": {
+    "preludex": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "bun src/cli.ts",
+    "prepublishOnly": "bun run build"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "docs",
+    "documentation",
+    "markdown",
+    "crawler",
+    "cli",
+    "playwright",
+    "scraper",
+    "docusaurus",
+    "vitepress",
+    "mkdocs",
+    "sphinx",
+    "gitbook",
+    "offline-docs"
+  ],
+  "author": "thanks2music <thanks2music@gmail.com>",
+  "license": "MIT",
+  "homepage": "",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/turndown": "^5.0.6",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "p-limit": "^7.2.0",
+    "playwright": "^1.57.0",
+    "turndown": "^7.2.2",
+    "turndown-plugin-gfm": "^1.0.2"
+  }
+}
